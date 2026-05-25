@@ -29,7 +29,13 @@ from video_factory.stages import (
     run_subtitles,
     run_timeline,
 )
-from video_factory.stages.base import load_state
+from video_factory.models.schemas import ApprovalStatus
+from video_factory.stages.base import json_artifact, load_state, save_state
+from video_factory.stages.images import select_image_variant
+from video_factory.utils.approval import load_approval, set_approval
+from video_factory.utils.asset_library import default_library_dir, register_asset
+from video_factory.utils.files import read_json
+from video_factory.utils.hash import content_hash
 
 app = typer.Typer(
     name="video-factory",
@@ -252,6 +258,85 @@ def status(
             st = "pending"
             detail = ""
         table.add_row(stage.value, st, detail)
+    console.print(table)
+
+
+@app.command("approve")
+def approve_stage(
+    stage: str = typer.Argument(..., help="Stage to approve, e.g. script"),
+    project_id: str = typer.Argument(...),
+    notes: str = typer.Option("", "--notes"),
+    projects: Optional[Path] = typer.Option(None, "--projects-dir"),
+) -> None:
+    """Mark a gated stage as human-approved (e.g. script review before scenes)."""
+    projects_dir = _projects_dir(projects)
+    project_dir = _resolve_project(projects_dir, project_id)
+    try:
+        stage_enum = StageName(stage)
+    except ValueError as exc:
+        raise typer.BadParameter(f"Unknown stage: {stage}") from exc
+
+    set_approval(project_dir, stage_enum, ApprovalStatus.APPROVED, notes=notes)
+    if stage_enum == StageName.SCRIPT:
+        script_path = json_artifact(project_dir, "script_package.json")
+        if script_path.exists():
+            state = load_state(project_dir)
+            state.mark_complete(StageName.SCRIPT, content_hash(read_json(script_path)))
+            save_state(project_dir, state)
+    console.print(f"[green]Approved {stage}[/green]")
+
+
+@app.command("select-image")
+def select_image(
+    project_id: str = typer.Argument(...),
+    scene_id: str = typer.Argument(..., help="e.g. s01"),
+    variant: str = typer.Option(..., "--variant", "-v", help="e.g. v02"),
+    projects: Optional[Path] = typer.Option(None, "--projects-dir"),
+) -> None:
+    """Pick the best image variant for a scene (Bog-style 4-up review)."""
+    projects_dir = _projects_dir(projects)
+    project_dir = _resolve_project(projects_dir, project_id)
+    asset = select_image_variant(project_dir, scene_id, variant)
+    console.print(f"[green]Selected {scene_id} -> {asset.path}[/green]")
+
+
+@app.command("library-add")
+def library_add(
+    image: Path = typer.Argument(..., exists=True, help="Image file to register"),
+    description: str = typer.Option(..., "--desc", "-d"),
+    style: str = typer.Option("", "--style"),
+    tag: list[str] = typer.Option(None, "--tag"),
+) -> None:
+    """Add an image to the shared reuse library with a text description."""
+    entry = register_asset(
+        default_library_dir(),
+        image,
+        description,
+        tags=tag or [],
+        style=style,
+    )
+    console.print(f"[green]Registered {entry.asset_id}[/green] -> {entry.path}")
+
+
+@app.command("candidates")
+def list_candidates(
+    project_id: str = typer.Argument(...),
+    projects: Optional[Path] = typer.Option(None, "--projects-dir"),
+) -> None:
+    """List image variants per scene for manual selection."""
+    projects_dir = _projects_dir(projects)
+    project_dir = _resolve_project(projects_dir, project_id)
+    path = json_artifact(project_dir, "image_candidates.json")
+    if not path.exists():
+        raise typer.Exit(code=1)
+    data = read_json(path)
+    table = Table(title="Image candidates")
+    table.add_column("Scene")
+    table.add_column("Variants")
+    table.add_column("Selected")
+    for scene in data.get("scenes", []):
+        variants = ", ".join(v["variant_id"] for v in scene.get("variants", []))
+        table.add_row(scene["scene_id"], variants, scene.get("selected_variant_id") or "-")
     console.print(table)
 
 

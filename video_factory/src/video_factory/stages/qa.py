@@ -82,6 +82,26 @@ def run_qa(project_dir: Path, *, force: bool = False) -> QAReport:
     else:
         checks.append(QACheck(name="subtitle_parse", passed=False, message="missing SRT"))
 
+    script_meta_path = json_artifact(project_dir, "script_meta.json")
+    if script_meta_path.exists():
+        meta = read_json(script_meta_path)
+        title_ok = bool(meta.get("title_fits_homepage", True))
+        checks.append(
+            QACheck(
+                name="title_homepage_fit",
+                passed=title_ok,
+                message=meta.get("title_check", ""),
+            )
+        )
+        if not title_ok:
+            warnings.append("Title may truncate on YouTube mobile homepage")
+
+    for scene in timeline.scenes:
+        if scene.duration_sec < 1.0:
+            warnings.append(f"Scene {scene.scene_id} under 1s — may feel rushed")
+        if scene.duration_sec > config.scene_beat_sec * 2:
+            warnings.append(f"Scene {scene.scene_id} longer than 2× beat ({config.scene_beat_sec}s)")
+
     passed = all(c.passed for c in checks)
     report = QAReport(
         passed=passed,

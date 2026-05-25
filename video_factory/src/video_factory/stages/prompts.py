@@ -23,10 +23,24 @@ def run_prompts(project_dir: Path, *, force: bool = False) -> list[VisualPromptD
     scenes = ScenePlan.model_validate(read_json(json_artifact(project_dir, "scene_plan.json")))
 
     writer = GeminiLLMWriter(get_settings())
+    style_ref_note = ""
+    if config.style_reference:
+        ref = project_dir / config.style_reference
+        if ref.is_file():
+            style_ref_note = (
+                "Lock visuals to the reference image in inputs (Whisk-style style transfer). "
+                "Same line weight, palette, and character proportions in every scene."
+            )
+    if config.character_reference:
+        cref = project_dir / config.character_reference
+        if cref.is_file():
+            style_ref_note += " Use the character reference for identical face/expression each scene."
+
     style_raw = writer.generate_json(
         (
             "Create a style_bible JSON for consistent visuals across scenes: "
-            "visual_style, palette, lighting, composition_rules, negative_global."
+            "visual_style, palette, lighting, composition_rules, negative_global. "
+            f"{style_ref_note}"
         ),
         {"visual_style": config.visual_style, "topic": config.topic},
         "StyleBible",
@@ -40,7 +54,9 @@ def run_prompts(project_dir: Path, *, force: bool = False) -> list[VisualPromptD
             (
                 "Expand scene into image prompt JSON: scene_id, subject, setting, composition, "
                 "lighting, mood, palette, camera_framing, negative_prompt, aspect_ratio, full_prompt. "
-                "full_prompt must be one paragraph ready for image model."
+                "full_prompt must be one paragraph ready for image model. "
+                "Avoid floating objects, extra limbs, mismatched faces. "
+                "Prefer simple MS Paint / editorial illustration compositions."
             ),
             {
                 "scene": scene.model_dump(),

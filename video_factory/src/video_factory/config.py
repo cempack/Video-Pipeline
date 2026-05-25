@@ -58,6 +58,7 @@ def save_project_config(project_dir: Path, config: ProjectConfig) -> None:
 def ensure_project_layout(project_dir: Path) -> None:
     for sub in ("inputs", "work", "outputs", "logs"):
         (project_dir / sub).mkdir(parents=True, exist_ok=True)
+    (project_dir / "inputs" / "library").mkdir(parents=True, exist_ok=True)
     for sub in (
         "work/images",
         "work/audio",
@@ -82,4 +83,8 @@ def default_project_config(
         voice="default",
         visual_style="editorial illustration",
         subtitle_style="burned_in",
+        scene_beat_sec=3.0,
+        image_variants_per_scene=4,
+        remove_silence=True,
+        use_asset_library=True,
     )

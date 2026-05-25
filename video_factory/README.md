@@ -93,6 +93,40 @@ pytest -q
 - **Fail loudly**: Stages validate prerequisites via `require_stage`.
 - **No publishing**: Outputs are local MP4 files only.
 
+## Faceless-channel production techniques
+
+Inspired by real AI YouTube workflows (e.g. static-illustration channels using ElevenLabs + batch image gen):
+
+| Technique | Config / CLI | What it does |
+|-----------|--------------|--------------|
+| **~3s still frames** | `scene_beat_sec: 3.0` | Scene planner targets one image every ~3 seconds |
+| **4-up image review** | `image_variants_per_scene: 4` | Saves `s01_v01.png`…`s01_v04.png`; pick with `video-factory select-image PROJECT s01 --variant v02` |
+| **Variant listing** | `video-factory candidates PROJECT` | Table of scenes and variants |
+| **Remove TTS silence** | `remove_silence: true` | FFmpeg `silenceremove` on each scene clip (clean AI gaps) |
+| **ElevenLabs continuity** | (built-in) | `previous_text` / `next_text` across scene chunks |
+| **Style lock** | `inputs/style_reference.png` + `style_reference` in config | Prompts + placeholder strip mimic Whisk-style consistency |
+| **Character reference** | `character_reference` in config | Instructions lock face/expression across scenes |
+| **Batch prompts file** | `inputs/batch_image_prompts.txt` | One prompt per line (auto-whisk style batch) |
+| **Asset library** | `library/` + `use_asset_library` | Reuse indexed images; `video-factory library-add img.png --desc "..."` |
+| **Script approval gate** | `require_script_approval: true` | `video-factory approve script PROJECT` before scenes |
+| **Project skill files** | `inputs/script.md`, `inputs/scenes.md` | Markdown instructions merged into Gemini prompts (improves over time as you edit) |
+| **Title length QA** | `max_title_chars: 60` | Checks title fits mobile homepage in QA |
+| **Optional loudness drift** | `audio_loudness_variation: true` | Subtle per-scene level variation |
+
+Example quality-first workflow:
+
+```bash
+video-factory run script my-video
+# Edit work/json/script_package.json, then:
+video-factory approve script my-video
+video-factory run scenes my-video
+video-factory run images my-video
+video-factory candidates my-video
+video-factory select-image my-video s03 --variant v02
+video-factory run narration my-video
+video-factory run all my-video --resume
+```
+
 ## Example project
 
-See `projects/2026-05-23-example-topic/` for a starter config and research notes template.
+See `projects/2026-05-23-example-topic/` for a starter config, `inputs/script.md`, and research notes.

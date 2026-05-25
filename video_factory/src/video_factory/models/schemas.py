@@ -24,6 +24,24 @@ class ProjectConfig(BaseModel):
     voice: str = "default"
     visual_style: str = "editorial illustration"
     subtitle_style: SubtitleStyle = "burned_in"
+    # Production techniques (faceless AI channel workflows)
+    scene_beat_sec: float = Field(
+        default=3.0,
+        ge=1.5,
+        le=6.0,
+        description="Target seconds per still frame (~3s matches common faceless edits)",
+    )
+    image_variants_per_scene: int = Field(default=4, ge=1, le=8)
+    auto_select_first_variant: bool = True
+    remove_silence: bool = True
+    silence_threshold_db: float = -40.0
+    silence_min_duration_sec: float = 0.15
+    audio_loudness_variation: bool = False
+    require_script_approval: bool = False
+    use_asset_library: bool = True
+    style_reference: str = ""
+    character_reference: str = ""
+    max_title_chars: int = 60
 
 
 class ResearchSource(BaseModel):
@@ -103,6 +121,50 @@ class ImageAsset(BaseModel):
     model: str = ""
     width: int = 0
     height: int = 0
+    variant_id: str = ""
+    from_library: bool = False
+
+
+class ImageVariant(BaseModel):
+    variant_id: str
+    path: str
+    seed: int | None = None
+
+
+class ImageCandidateSet(BaseModel):
+    scene_id: str
+    prompt: str
+    variants: list[ImageVariant] = Field(default_factory=list)
+    selected_variant_id: str | None = None
+
+
+class ImageSelectionManifest(BaseModel):
+    scenes: list[ImageCandidateSet] = Field(default_factory=list)
+
+
+class ApprovalStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class StageApproval(BaseModel):
+    stage: str
+    status: ApprovalStatus = ApprovalStatus.PENDING
+    notes: str = ""
+    reviewed_at: str | None = None
+
+
+class LibraryAsset(BaseModel):
+    asset_id: str
+    description: str
+    path: str
+    tags: list[str] = Field(default_factory=list)
+    style: str = ""
+
+
+class LibraryIndex(BaseModel):
+    assets: list[LibraryAsset] = Field(default_factory=list)
 
 
 class AudioManifest(BaseModel):
