@@ -1,0 +1,19 @@
+project_id: 2026-05-23-example-topic
+topic: Why short feedback loops beat long planning cycles in technology teams
+vertical: technology
+target_duration_sec: 45
+aspect_ratio: "9:16"
+language: en
+voice: default
+visual_style: editorial illustration
+subtitle_style: burned_in
+scene_beat_sec: 3.0
+image_variants_per_scene: 4
+auto_select_first_variant: true
+remove_silence: true
+use_asset_library: true
+max_title_chars: 60
+image_backend: whisk_local
+style_reference: inputs/style_reference.png
+character_reference: inputs/character_reference.png
+enforce_face_lock: true

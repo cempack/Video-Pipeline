@@ -1,0 +1,46 @@
+name: video-factory
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+    paths:
+      - 'video_factory/**'
+      - '.github/workflows/video-factory.yml'
+  pull_request:
+    paths:
+      - 'video_factory/**'
+      - '.github/workflows/video-factory.yml'
+
+defaults:
+  run:
+    working-directory: video_factory
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python tests
+        run: |
+          pip install -e ".[dev]"
+          PYTHONPATH=src python3 -m pytest -q
+      - name: Go embed sanity test
+        run: go test ./internal/bootstrap/embedded/... -count=1
+      - name: Build binary (embed + go)
+        run: make build
+      - name: Heavy integration test
+        env:
+          VIDEO_FACTORY_FORCE_MANAGED: '1'
+        run: bash scripts/heavy-test.sh
+      - name: Managed setup smoke test
+        env:
+          VIDEO_FACTORY_FORCE_MANAGED: '1'
+        run: |
+          ./dist/video-factory setup
+          ./dist/video-factory doctor
