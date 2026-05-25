@@ -1,0 +1,98 @@
+# Video Factory
+
+Python-first pipeline that turns a topic prompt into a short-form vertical video: research pack, script, scene plan, visuals, voiceover, subtitles, and FFmpeg render. Each stage is a separate, rerunnable CLI command with persisted JSON artifacts.
+
+## Requirements
+
+- Python 3.11+
+- FFmpeg and ffprobe on `PATH` (subtitle burn-in needs libass-enabled builds)
+- API keys (for full pipeline): `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`
+
+## Install
+
+```bash
+cd video_factory
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env
+# Edit .env with your keys
+```
+
+## Quick start
+
+```bash
+video-factory init-project my-video --topic "Stoicism for busy engineers" --vertical philosophy
+
+# Optional: edit projects/my-video/inputs/notes.md and sources.txt
+
+video-factory run research my-video
+video-factory run script my-video
+video-factory run scenes my-video
+video-factory run prompts my-video
+video-factory run images my-video
+video-factory run narration my-video
+video-factory run subtitles my-video
+video-factory run timeline my-video
+video-factory run render my-video
+video-factory run qa my-video
+
+# Or resume from last completed stage:
+video-factory run all my-video --resume
+```
+
+## Project layout
+
+Each project lives under `projects/<project_id>/`:
+
+| Path | Purpose |
+|------|---------|
+| `config.yaml` | Creative settings (topic, duration, vertical, voice) |
+| `inputs/` | Notes, sources, manual briefs |
+| `work/` | JSON plans, images, audio, subtitles |
+| `outputs/` | `final_clean.mp4`, `final_subtitled.mp4`, `qa_report.json` |
+| `logs/` | Pipeline log |
+| `state.json` | Stage completion and artifact hashes |
+
+## Stages
+
+1. **research** — Normalize `inputs/notes.md` into `research_pack.json`
+2. **script** — Gemini draft + compression pass → `script_package.json`
+3. **scenes** — Visual beat segmentation → `scene_plan.json`
+4. **prompts** — Per-scene image prompts + `style_bible.json`
+5. **images** — Placeholder or custom image backend → `work/images/`
+6. **narration** — ElevenLabs per-scene TTS + concatenated voiceover
+7. **subtitles** — SRT/VTT from measured audio durations
+8. **timeline** — `timeline.json` render manifest
+9. **render** — FFmpeg Ken Burns clips, concat, mux, optional subtitle burn-in
+10. **qa** — Duration, resolution, asset, and subtitle checks
+
+## Adapters
+
+| Adapter | Env | Role |
+|---------|-----|------|
+| `GeminiLLMWriter` | `GEMINI_API_KEY`, `GEMINI_MODEL` | Script, scenes, prompts |
+| `ElevenLabsNarrationProvider` | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | TTS |
+| `PlaceholderImageProvider` | `IMAGE_BACKEND=placeholder` | Local dev images |
+| `FFmpegAdapter` | `FFMPEG_BIN`, `FFPROBE_BIN` | Probe, render, subtitles |
+
+Swap providers by implementing the `LLMWriter`, `NarrationProvider`, and `ImageProvider` protocols without changing stage orchestration.
+
+## Offline / CI testing
+
+Placeholder images and unit tests run without API keys:
+
+```bash
+pytest -q
+```
+
+## Design notes
+
+- **Deterministic artifacts**: Every stage writes JSON under `work/` or `outputs/`.
+- **Resumable**: `state.json` tracks completion; `run all --resume` skips finished stages.
+- **Fail loudly**: Stages validate prerequisites via `require_stage`.
+- **No publishing**: Outputs are local MP4 files only.
+
+## Example project
+
+See `projects/2026-05-23-example-topic/` for a starter config and research notes template.
