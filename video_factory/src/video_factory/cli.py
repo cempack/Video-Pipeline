@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -92,7 +93,8 @@ STAGE_LABELS: dict[StageName, str] = {
 
 @app.callback()
 def main_callback() -> None:
-    get_console().banner()
+    if not os.environ.get("VF_HEADLESS"):
+        get_console().banner()
 
 
 def _projects_dir(projects: Path | None) -> Path:

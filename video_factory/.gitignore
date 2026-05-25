@@ -1,3 +1,5 @@
+dist/
+video-factory
 .venv/
 .env
 __pycache__/

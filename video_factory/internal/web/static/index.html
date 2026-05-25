@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Video Factory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-elevated: #111111;
+      --bg-hover: #1a1a1a;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text: #ededed;
+      --text-muted: #888;
+      --accent: #ffffff;
+      --ok: #4ade80;
+      --warn: #fbbf24;
+      --err: #f87171;
+      --radius: 10px;
+      --font: "Inter", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .grain {
+      position: fixed; inset: 0; pointer-events: none; opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .logo {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      color: var(--accent);
+    }
+    .logo span { color: var(--text-muted); font-weight: 400; font-size: 12px; display: block; margin-top: 2px; }
+    nav button {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font: inherit;
+      transition: background 0.15s, color 0.15s;
+    }
+    nav button:hover { background: var(--bg-hover); color: var(--text); }
+    nav button.active { background: var(--bg-hover); color: var(--accent); }
+    main { padding: 32px 40px 48px; }
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .subtitle { color: var(--text-muted); margin-bottom: 32px; max-width: 480px; }
+    .card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font: inherit;
+      margin-bottom: 12px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--border-strong);
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--bg-hover); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .stages { display: flex; flex-direction: column; gap: 6px; }
+    .stage {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+    }
+    .stage:hover { background: var(--bg-hover); border-color: var(--border); }
+    .stage-name { font-weight: 500; text-transform: capitalize; }
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: var(--bg);
+      color: var(--text-muted);
+    }
+    .badge.complete { color: var(--ok); border: 1px solid rgba(74, 222, 128, 0.3); }
+    .badge.failed { color: var(--err); }
+    .badge.awaiting { color: var(--warn); }
+    .projects-list { display: flex; flex-direction: column; gap: 8px; }
+    .project-item {
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .project-item:hover, .project-item.selected {
+      border-color: var(--border-strong);
+      background: var(--bg-hover);
+    }
+    .project-item strong { display: block; margin-bottom: 4px; }
+    .project-item small { color: var(--text-muted); }
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 100;
+      animation: fadeIn 0.2s ease;
+    }
+    .toast.err { border-color: rgba(248, 113, 113, 0.4); color: var(--err); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
+    .hidden { display: none !important; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .pill {
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .pill:hover { border-color: var(--border-strong); }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      display: inline-block; margin-right: 8px;
+      background: var(--text-muted);
+    }
+    .status-dot.ok { background: var(--ok); }
+    .status-dot.bad { background: var(--err); }
+    pre.log {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 11px;
+      max-height: 200px;
+      overflow: auto;
+      color: var(--text-muted);
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="layout">
+    <aside>
+      <div class="logo">Video Factory<span>Short-form pipeline</span></div>
+      <nav>
+        <button type="button" data-view="projects" class="active">Projects</button>
+        <button type="button" data-view="settings">Settings</button>
+        <button type="button" data-view="docs">Quick guide</button>
+      </nav>
+    </aside>
+    <main>
+      <section id="view-projects">
+        <h1>Projects</h1>
+        <p class="subtitle">Create vertical videos with Whisk-style visuals, Gemini scripts, and FFmpeg render.</p>
+        <div style="display:grid; grid-template-columns: 280px 1fr; gap: 24px;">
+          <div class="card">
+            <h2>Your projects</h2>
+            <div id="projects-list" class="projects-list"></div>
+            <button type="button" class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px" id="btn-refresh">Refresh</button>
+          </div>
+          <div>
+            <div class="card" id="panel-detail">
+              <h2 id="detail-title">Select a project</h2>
+              <p class="subtitle" style="margin-bottom:16px" id="detail-topic"></p>
+              <div id="refs-hint" class="hidden" style="margin-bottom:16px;font-size:13px;color:var(--warn)"></div>
+              <div class="stages" id="stages-list"></div>
+              <div class="pill-row">
+                <button type="button" class="btn" id="btn-run-all">Run all</button>
+                <button type="button" class="btn btn-ghost" id="btn-approve-script">Approve script</button>
+              </div>
+              <pre class="log hidden" id="run-log"></pre>
+            </div>
+            <div class="card">
+              <h2>New project</h2>
+              <div class="row">
+                <div><label>Project ID</label><input id="new-id" placeholder="my-video-01" /></div>
+                <div><label>Vertical</label>
+                  <select id="new-vertical">
+                    <option>technology</option>
+                    <option>philosophy</option>
+                    <option>politics</option>
+                    <option>economics</option>
+                  </select>
+                </div>
+              </div>
+              <label>Topic</label>
+              <input id="new-topic" placeholder="Why short feedback loops beat long planning" />
+              <button type="button" class="btn" id="btn-create">Create project</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-settings" class="hidden">
+        <h1>Settings</h1>
+        <p class="subtitle">Configure Gemini and ElevenLabs. Keys are stored locally in your config file.</p>
+        <div class="card" style="max-width: 520px">
+          <h2>API keys</h2>
+          <label>Gemini API key</label>
+          <input type="password" id="cfg-gemini" placeholder="From Google AI Studio" autocomplete="off" />
+          <label>Gemini model</label>
+          <input id="cfg-gemini-model" value="gemini-2.0-flash" />
+          <label>Gemini image model</label>
+          <input id="cfg-gemini-image" value="gemini-2.0-flash-exp-image-generation" />
+          <label>ElevenLabs API key</label>
+          <input type="password" id="cfg-eleven" placeholder="Optional for narration" autocomplete="off" />
+          <label>ElevenLabs voice ID</label>
+          <input id="cfg-voice" placeholder="Voice ID" />
+          <label>Image backend</label>
+          <select id="cfg-backend">
+            <option value="whisk_local">whisk_local (offline + face lock)</option>
+            <option value="whisk_gemini">whisk_gemini (API)</option>
+          </select>
+          <button type="button" class="btn" id="btn-save-config">Save configuration</button>
+          <p style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="cfg-status"></p>
+        </div>
+      </section>
+
+      <section id="view-docs" class="hidden">
+        <h1>Quick guide</h1>
+        <p class="subtitle">Same workflow as the CLI — all stages preserved.</p>
+        <div class="card">
+          <ol style="padding-left:20px;color:var(--text-muted);line-height:2">
+            <li>Add <code style="color:var(--text)">inputs/style_reference.png</code> and <code style="color:var(--text)">character_reference.png</code> (Whisk exports)</li>
+            <li>Configure Gemini in Settings</li>
+            <li>Run stages: research → script → scenes → prompts → character → images → narration → subtitles → timeline → render → qa</li>
+            <li>Use <strong style="color:var(--text)">pick</strong> in CLI for image variants: <code style="color:var(--text)">video-factory pick PROJECT s01 -v v02</code></li>
+          </ol>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <script>
+    const STAGES = ['research','script','scenes','prompts','character','images','narration','subtitles','timeline','render','qa'];
+    let selectedId = null;
+
+    function toast(msg, err=false) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast' + (err ? ' err' : '');
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    async function api(path, opts={}) {
+      const r = await fetch(path, opts);
+      const t = await r.text();
+      let j;
+      try { j = JSON.parse(t); } catch { j = { raw: t }; }
+      if (!r.ok) throw new Error(j.error || t || r.statusText);
+      return j;
+    }
+
+    function showView(name) {
+      document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+      ['projects','settings','docs'].forEach(v => {
+        document.getElementById('view-' + v).classList.toggle('hidden', v !== name);
+      });
+    }
+
+    document.querySelectorAll('nav button').forEach(b => {
+      b.onclick = () => showView(b.dataset.view);
+    });
+
+    async function loadConfig() {
+      try {
+        const c = await api('/api/config');
+        document.getElementById('cfg-status').innerHTML =
+          `<span class="status-dot ${c.gemini_set?'ok':'bad'}"></span> Gemini ${c.gemini_set?'configured':'missing'} · ` +
+          `<span class="status-dot ${c.elevenlabs_set?'ok':''}"></span> ElevenLabs ${c.elevenlabs_set?'configured':'optional'}`;
+        if (c.gemini_model) document.getElementById('cfg-gemini-model').value = c.gemini_model;
+        if (c.image_backend) document.getElementById('cfg-backend').value = c.image_backend;
+      } catch (e) { console.warn(e); }
+    }
+
+    document.getElementById('btn-save-config').onclick = async () => {
+      try {
+        await api('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gemini_api_key: document.getElementById('cfg-gemini').value,
+            elevenlabs_api_key: document.getElementById('cfg-eleven').value,
+            elevenlabs_voice_id: document.getElementById('cfg-voice').value,
+            gemini_model: document.getElementById('cfg-gemini-model').value,
+            gemini_image_model: document.getElementById('cfg-gemini-image').value,
+            image_backend: document.getElementById('cfg-backend').value,
+          }),
+        });
+        toast('Configuration saved');
+        loadConfig();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    async function loadProjects() {
+      const data = await api('/api/projects');
+      const list = document.getElementById('projects-list');
+      list.innerHTML = '';
+      (data.projects || []).forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'project-item' + (p.id === selectedId ? ' selected' : '');
+        div.innerHTML = `<strong>${p.id}</strong><small>${p.path}</small>`;
+        div.onclick = () => { selectedId = p.id; loadProjects(); loadDetail(); };
+        list.appendChild(div);
+      });
+      if (!selectedId && data.projects?.length) {
+        selectedId = data.projects[0].id;
+        loadProjects();
+        loadDetail();
+      }
+    }
+
+    async function loadDetail() {
+      if (!selectedId) return;
+      const d = await api('/api/project/' + selectedId);
+      document.getElementById('detail-title').textContent = d.project_id;
+      document.getElementById('detail-topic').textContent = d.topic + ' · ' + d.vertical;
+      const hint = document.getElementById('refs-hint');
+      if (!d.refs_ok) {
+        hint.classList.remove('hidden');
+        hint.textContent = 'Add Whisk references: ' + (d.missing_refs || []).join(', ');
+      } else hint.classList.add('hidden');
+
+      const sl = document.getElementById('stages-list');
+      sl.innerHTML = '';
+      (d.stages || []).forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'stage';
+        row.innerHTML = `
+          <span class="stage-name">${s.name}</span>
+          <span>
+            <span class="badge ${s.status}">${s.status}</span>
+            <button type="button" class="btn btn-ghost btn-sm" data-stage="${s.name}">Run</button>
+          </span>`;
+        row.querySelector('button').onclick = async (e) => {
+          e.stopPropagation();
+          await runStage(s.name);
+        };
+        sl.appendChild(row);
+      });
+    }
+
+    async function runStage(stage, force=false) {
+      const log = document.getElementById('run-log');
+      log.classList.remove('hidden');
+      log.textContent = 'Running ' + stage + '…';
+      try {
+        const q = force ? '?force=1' : (stage === 'all' ? '' : '');
+        const res = await api('/api/project/' + selectedId + '/run/' + stage + q, { method: 'POST' });
+        log.textContent = JSON.stringify(res, null, 2);
+        toast(stage + ' complete');
+        loadDetail();
+      } catch (e) {
+        log.textContent = e.message;
+        toast(e.message, true);
+      }
+    }
+
+    document.getElementById('btn-run-all').onclick = () => runStage('all');
+    document.getElementById('btn-approve-script').onclick = async () => {
+      try {
+        await api('/api/project/' + selectedId + '/approve/script', { method: 'POST' });
+        toast('Script approved');
+        loadDetail();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    document.getElementById('btn-create').onclick = async () => {
+      const id = document.getElementById('new-id').value.trim();
+      const topic = document.getElementById('new-topic').value.trim();
+      if (!id || !topic) { toast('ID and topic required', true); return; }
+      try {
+        await api('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id, topic,
+            vertical: document.getElementById('new-vertical').value,
+            duration: 45,
+          }),
+        });
+        selectedId = id;
+        toast('Project created');
+        loadProjects();
+        loadDetail();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    document.getElementById('btn-refresh').onclick = () => { loadProjects(); if (selectedId) loadDetail(); };
+
+    loadConfig();
+    loadProjects().catch(e => toast(e.message, true));
+  </script>
+</body>
+</html>

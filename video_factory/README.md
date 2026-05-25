@@ -1,152 +1,122 @@
 # Video Factory
 
-Python-first pipeline that turns a topic prompt into a short-form vertical video: research pack, script, scene plan, visuals, voiceover, subtitles, and FFmpeg render. Each stage is a separate, rerunnable CLI command with persisted JSON artifacts.
+Python pipeline for short-form video + **Go control plane** (small ~6MB binary, web UI, intuitive CLI).
 
-## Requirements
+## Two ways to run
 
-- Python 3.11+
-- FFmpeg and ffprobe on `PATH` (subtitle burn-in needs libass-enabled builds)
-- API keys (for full pipeline): `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`
+| | **Go app (recommended)** | Python CLI (legacy) |
+|---|------------------------|---------------------|
+| Install | `make build` → `dist/video-factory` | `pip install -e .` |
+| Command | `./dist/video-factory` | `video-factory-py` |
+| Web UI | `./dist/video-factory serve` | — |
+| Config | `video-factory config wizard` | `.env` file |
 
-## Install
-
-```bash
-cd video_factory
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-cp .env.example .env
-# Edit .env with your keys
-```
+The Go binary orchestrates the same Python engine — **no features removed**.
 
 ## Quick start
 
 ```bash
-video-factory init-project my-video --topic "Stoicism for busy engineers" --vertical philosophy
+cd video_factory
+make build          # compiles dist/video-factory
+pip install -e .    # Python engine (required once)
 
-# Optional: edit projects/my-video/inputs/notes.md and sources.txt
+./dist/video-factory config wizard   # Gemini + ElevenLabs keys
+./dist/video-factory doctor          # verify setup
 
-video-factory run research my-video
-video-factory run script my-video
-video-factory run scenes my-video
-video-factory run prompts my-video
-video-factory run images my-video
-video-factory run narration my-video
-video-factory run subtitles my-video
-video-factory run timeline my-video
-video-factory run render my-video
-video-factory run qa my-video
+./dist/video-factory init my-demo -t "Your topic"
+./dist/video-factory serve           # open http://127.0.0.1:3847
 
-# Or resume from last completed stage:
-video-factory run all my-video --resume
+# Or CLI-only:
+./dist/video-factory run all my-demo --resume
 ```
 
-## Project layout
-
-Each project lives under `projects/<project_id>/`:
-
-| Path | Purpose |
-|------|---------|
-| `config.yaml` | Creative settings (topic, duration, vertical, voice) |
-| `inputs/` | Notes, sources, manual briefs |
-| `work/` | JSON plans, images, audio, subtitles |
-| `outputs/` | `final_clean.mp4`, `final_subtitled.mp4`, `qa_report.json` |
-| `logs/` | Pipeline log |
-| `state.json` | Stage completion and artifact hashes |
-
-## Stages
-
-1. **research** — Normalize `inputs/notes.md` into `research_pack.json`
-2. **script** — Gemini draft + compression pass → `script_package.json`
-3. **scenes** — Visual beat segmentation → `scene_plan.json`
-4. **prompts** — Per-scene image prompts + `style_bible.json`
-5. **images** — Placeholder or custom image backend → `work/images/`
-6. **narration** — ElevenLabs per-scene TTS + concatenated voiceover
-7. **subtitles** — SRT/VTT from measured audio durations
-8. **timeline** — `timeline.json` render manifest
-9. **render** — FFmpeg Ken Burns clips, concat, mux, optional subtitle burn-in
-10. **qa** — Duration, resolution, asset, and subtitle checks
-
-## Adapters
-
-| Adapter | Env | Role |
-|---------|-----|------|
-| `GeminiLLMWriter` | `GEMINI_API_KEY`, `GEMINI_MODEL` | Script, scenes, prompts |
-| `ElevenLabsNarrationProvider` | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | TTS |
-| `PlaceholderImageProvider` | `IMAGE_BACKEND=placeholder` | Local dev images |
-| `FFmpegAdapter` | `FFMPEG_BIN`, `FFPROBE_BIN` | Probe, render, subtitles |
-
-Swap providers by implementing the `LLMWriter`, `NarrationProvider`, and `ImageProvider` protocols without changing stage orchestration.
-
-## Offline / CI testing
-
-Placeholder images and unit tests run without API keys:
+## Go CLI (intuitive commands)
 
 ```bash
-pytest -q
+video-factory init <id> -t "Topic"     # create project
+video-factory status <id>              # pipeline progress
+video-factory run <stage> <id>         # run one stage
+video-factory run all <id>             # full pipeline (--resume default)
+video-factory pick <id> s01 -v v02     # select image variant
+video-factory approve script <id>      # human gate
+video-factory candidates <id>          # list variants
+video-factory library add img.png -d "description"
+
+video-factory config wizard            # interactive API setup
+video-factory config set gemini-api-key <key>
+video-factory config set-secret gemini-api-key   # hidden input
+video-factory config get
+video-factory doctor
+video-factory serve                    # web UI
 ```
 
-## Design notes
+Stages: `research`, `script`, `scenes`, `prompts`, `character`, `images`, `narration`, `subtitles`, `timeline`, `render`, `qa`
 
-- **Deterministic artifacts**: Every stage writes JSON under `work/` or `outputs/`.
-- **Resumable**: `state.json` tracks completion; `run all --resume` skips finished stages.
-- **Fail loudly**: Stages validate prerequisites via `require_stage`.
-- **No publishing**: Outputs are local MP4 files only.
+## Web UI
+
+Cursor-inspired dark interface:
+
+- **Projects** — create, select, run any stage, run all, approve script
+- **Settings** — Gemini & ElevenLabs keys (saved to `~/.config/video-factory/config.json` + synced `.env`)
+- **Quick guide** — Whisk references workflow
+
+```bash
+./dist/video-factory serve --port 3847
+```
+
+## Configure Gemini from CLI
+
+```bash
+# Interactive
+./dist/video-factory config wizard
+
+# Direct
+./dist/video-factory config set gemini-api-key YOUR_KEY
+./dist/video-factory config set gemini-model gemini-2.0-flash
+./dist/video-factory config set gemini-image-model gemini-2.0-flash-exp-image-generation
+
+# No echo
+./dist/video-factory config set-secret gemini-api-key
+```
+
+Config path: `video-factory config path`
 
 ## Whisk-style visual coherence
 
-The pipeline mimics [Google Whisk](https://labs.google/fx/tools/whisk): **style board + character subject + scene prompt**.
+See previous sections in this README — `inputs/style_reference.png`, `inputs/character_reference.png`, `whisk_local` / `whisk_gemini`, face lock.
 
-1. Export from Whisk (or paint in MS Paint) into:
-   - `inputs/style_reference.png` — full style board (palette, line weight, texture)
-   - `inputs/character_reference.png` — canonical character (face + outfit)
-2. Set in `config.yaml`:
-   ```yaml
-   image_backend: whisk_local   # offline: palette lock + face composite
-   # image_backend: whisk_gemini  # API: Gemini image + same postprocess
-   enforce_face_lock: true
-   style_reference: inputs/style_reference.png
-   character_reference: inputs/character_reference.png
-   ```
-3. `whisk_local` applies palette harmonization, style texture blend, and **automated face lock** (same character anchor every scene — Bog’s Premiere fix, built-in).
-4. `whisk_gemini` sends both reference images to Gemini with strict “do not change the face” prompts, then runs the same post-pass.
+## Requirements
 
-Replace template PNGs from `init-project` with your real Whisk exports for production quality.
+- **Go 1.22+** — build the binary
+- **Python 3.11+** — pipeline engine
+- **FFmpeg** — render
+- **API keys** — Gemini (script/images), ElevenLabs (narration)
 
-## Faceless-channel production techniques
+## Project layout
 
-Inspired by real AI YouTube workflows (e.g. static-illustration channels using ElevenLabs + batch image gen):
-
-| Technique | Config / CLI | What it does |
-|-----------|--------------|--------------|
-| **~3s still frames** | `scene_beat_sec: 3.0` | Scene planner targets one image every ~3 seconds |
-| **4-up image review** | `image_variants_per_scene: 4` | Saves `s01_v01.png`…`s01_v04.png`; pick with `video-factory select-image PROJECT s01 --variant v02` |
-| **Variant listing** | `video-factory candidates PROJECT` | Table of scenes and variants |
-| **Remove TTS silence** | `remove_silence: true` | FFmpeg `silenceremove` on each scene clip (clean AI gaps) |
-| **ElevenLabs continuity** | (built-in) | `previous_text` / `next_text` across scene chunks |
-| **Style lock** | `inputs/style_reference.png` + `style_reference` in config | Prompts + placeholder strip mimic Whisk-style consistency |
-| **Character reference** | `character_reference` in config | Instructions lock face/expression across scenes |
-| **Batch prompts file** | `inputs/batch_image_prompts.txt` | One prompt per line (auto-whisk style batch) |
-| **Asset library** | `library/` + `use_asset_library` | Reuse indexed images; `video-factory library-add img.png --desc "..."` |
-| **Script approval gate** | `require_script_approval: true` | `video-factory approve script PROJECT` before scenes |
-| **Project skill files** | `inputs/script.md`, `inputs/scenes.md` | Markdown instructions merged into Gemini prompts (improves over time as you edit) |
-| **Title length QA** | `max_title_chars: 60` | Checks title fits mobile homepage in QA |
-| **Optional loudness drift** | `audio_loudness_variation: true` | Subtle per-scene level variation |
-
-Example quality-first workflow:
-
-```bash
-video-factory run script my-video
-# Edit work/json/script_package.json, then:
-video-factory approve script my-video
-video-factory run scenes my-video
-video-factory run images my-video
-video-factory candidates my-video
-video-factory select-image my-video s03 --variant v02
-video-factory run narration my-video
-video-factory run all my-video --resume
+```
+video_factory/
+  cmd/video-factory/     # Go entry
+  internal/cli/          # Cobra commands
+  internal/web/          # Embedded web UI
+  internal/config/       # API key store
+  dist/video-factory     # compiled binary (after make build)
+  src/video_factory/     # Python pipeline
+  projects/
 ```
 
-## Example project
+## Python tests
 
-See `projects/2026-05-23-example-topic/` for a starter config, `inputs/script.md`, and research notes.
+```bash
+PYTHONPATH=src python3 -m pytest -q
+```
+
+## All features preserved
+
+- 11 pipeline stages including character sheet & Whisk images
+- 4 image variants + `pick` / `candidates`
+- Script approval gate
+- Asset library
+- Silence removal, scene beats, title QA
+- Batch prompt file, markdown skill files
+- Resume / force flags
