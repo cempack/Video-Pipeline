@@ -25,7 +25,6 @@ from video_factory.stages.base import (
     save_state,
 )
 from video_factory.stages.character import run_character_sheet
-from video_factory.ui.console import get_console
 from video_factory.utils.asset_library import default_library_dir, find_library_match, load_library
 from video_factory.utils.files import atomic_write_json, read_json
 from video_factory.utils.hash import content_hash
@@ -33,7 +32,6 @@ from video_factory.utils.whisk_coherence import load_references, postprocess_sce
 
 
 def run_images(project_dir: Path, *, force: bool = False) -> AssetManifest:
-    ui = get_console()
     state = load_state(project_dir)
     manifest_path = json_artifact(project_dir, "asset_manifest.json")
     candidates_path = json_artifact(project_dir, "image_candidates.json")
@@ -67,67 +65,61 @@ def run_images(project_dir: Path, *, force: bool = False) -> AssetManifest:
     images: list[ImageAsset] = []
     n_variants = config.image_variants_per_scene
 
-    with ui.progress_task("Generating scene images", total=len(prompts) * n_variants) as progress:
-        task_id = progress._vf_task_id  # type: ignore[attr-defined]
-        for p in prompts:
-            variants: list[ImageVariant] = []
-            reused = False
+    for p in prompts:
+        variants: list[ImageVariant] = []
+        reused = False
 
-            if library and config.use_asset_library:
-                match = find_library_match(library, p.full_prompt, config.visual_style)
-                if match and (library_dir / match.path).is_file():
-                    canonical = project_dir / f"work/images/{p.scene_id}.png"
-                    canonical.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(library_dir / match.path, canonical)
-                    postprocess_scene(canonical, refs, face_lock=config.enforce_face_lock)
-                    for v in range(1, n_variants + 1):
-                        vid = f"v{v:02d}"
-                        variant_path = project_dir / f"work/images/{p.scene_id}_{vid}.png"
-                        shutil.copy2(canonical, variant_path)
-                        variants.append(
-                            ImageVariant(variant_id=vid, path=f"work/images/{p.scene_id}_{vid}.png")
-                        )
-                    reused = True
-                    progress.advance(task_id, n_variants)
-
-            if not reused:
+        if library and config.use_asset_library:
+            match = find_library_match(library, p.full_prompt, config.visual_style)
+            if match and (library_dir / match.path).is_file():
+                canonical = project_dir / f"work/images/{p.scene_id}.png"
+                canonical.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(library_dir / match.path, canonical)
+                postprocess_scene(canonical, refs, face_lock=config.enforce_face_lock)
                 for v in range(1, n_variants + 1):
                     vid = f"v{v:02d}"
-                    out_rel = f"work/images/{p.scene_id}_{vid}.png"
-                    out_path = project_dir / out_rel
-                    cache_key = content_hash({"prompt": p.full_prompt, "w": width, "h": height, "v": v})
-                    if out_path.exists() and not force:
-                        variants.append(ImageVariant(variant_id=vid, path=out_rel))
-                    else:
-                        seed = hash(cache_key) % 2_147_483_647
-                        provider.generate(p, out_path, width, height, seed=seed)
-                        if config.image_backend == "placeholder":
-                            postprocess_scene(out_path, refs, face_lock=config.enforce_face_lock)
-                        variants.append(ImageVariant(variant_id=vid, path=out_rel, seed=seed))
-                    progress.advance(task_id)
+                    variants.append(
+                        ImageVariant(variant_id=vid, path=f"work/images/{p.scene_id}_{vid}.png")
+                    )
+                    shutil.copy2(canonical, project_dir / variants[-1].path)
+                reused = True
 
-            selected = variants[0].variant_id if variants else None
-            if config.auto_select_first_variant and variants:
-                _promote_variant(project_dir, p.scene_id, variants[0].path)
-            candidate_sets.append(
-                ImageCandidateSet(
-                    scene_id=p.scene_id,
-                    prompt=p.full_prompt,
-                    variants=variants,
-                    selected_variant_id=selected,
-                )
+        if not reused:
+            for v in range(1, n_variants + 1):
+                vid = f"v{v:02d}"
+                out_rel = f"work/images/{p.scene_id}_{vid}.png"
+                out_path = project_dir / out_rel
+                cache_key = content_hash({"prompt": p.full_prompt, "w": width, "h": height, "v": v})
+                if out_path.exists() and not force:
+                    variants.append(ImageVariant(variant_id=vid, path=out_rel))
+                else:
+                    seed = hash(cache_key) % 2_147_483_647
+                    provider.generate(p, out_path, width, height, seed=seed)
+                    variants.append(ImageVariant(variant_id=vid, path=out_rel, seed=seed))
+                postprocess_scene(out_path, refs, face_lock=config.enforce_face_lock)
+
+        selected = variants[0].variant_id if variants else None
+        if config.auto_select_first_variant and variants:
+            _promote_variant(project_dir, p.scene_id, variants[0].path)
+        candidate_sets.append(
+            ImageCandidateSet(
+                scene_id=p.scene_id,
+                prompt=p.full_prompt,
+                variants=variants,
+                selected_variant_id=selected,
             )
-            images.append(
-                ImageAsset(
-                    scene_id=p.scene_id,
-                    prompt=p.full_prompt,
-                    path=f"work/images/{p.scene_id}.png",
-                    width=width,
-                    height=height,
-                    variant_id=selected or "",
-                    from_library=reused,
-                )
+        )
+        images.append(
+            ImageAsset(
+                scene_id=p.scene_id,
+                prompt=p.full_prompt,
+                path=f"work/images/{p.scene_id}.png",
+                width=width,
+                height=height,
+                variant_id=selected or "",
+                from_library=reused,
             )
+        )
 
     atomic_write_json(candidates_path, ImageSelectionManifest(scenes=candidate_sets).model_dump(mode="json"))
 

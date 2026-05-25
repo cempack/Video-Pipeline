@@ -8,8 +8,7 @@ from video_factory.adapters.ffmpeg import FFmpegAdapter
 from video_factory.models.schemas import ProjectConfig, QAReport, QACheck, RenderTimeline, StageName
 from video_factory.stages.base import get_config, get_settings, json_artifact, load_state, outputs_path, require_stage, save_state
 from video_factory.stages.character import references_ready
-from video_factory.ui.console import get_console
-from video_factory.utils.files import atomic_write_json, read_json, require_file
+from video_factory.utils.files import atomic_write_json, read_json
 from video_factory.utils.hash import content_hash
 
 
@@ -129,5 +128,4 @@ def run_qa(project_dir: Path, *, force: bool = False) -> QAReport:
     else:
         state.mark_failed(StageName.QA, "QA checks failed")
     save_state(project_dir, state)
-    get_console().qa_summary(passed, checks, warnings)
     return report

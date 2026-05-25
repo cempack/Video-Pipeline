@@ -1,19 +1,17 @@
-"""Headless engine entry for Go CLI / web (no Rich banner)."""
+"""Headless pipeline engine (invoked by Go CLI / web UI)."""
 
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
-os.environ.setdefault("VF_HEADLESS", "1")
+from video_factory.logging import setup_logging
+from video_factory.models.schemas import StageName
+from video_factory.pipeline import PIPELINE_ORDER, STAGE_RUNNERS, init_project
 
-PIPELINE_ORDER = [
-    "research", "script", "scenes", "prompts", "character",
-    "images", "narration", "subtitles", "timeline", "render", "qa",
-]
+PIPELINE_ORDER_NAMES = [s.value for s in PIPELINE_ORDER]
 
 
 def main() -> None:
@@ -38,7 +36,6 @@ def dispatch(cmd: str, args: list[str]) -> dict[str, Any] | None:
     load_app_settings()
     projects_dir = _parse_projects(args)
     force = "--force" in args
-    filtered = [a for a in args if a not in ("--force", "--no-resume", "--skip-research") and a != "--projects-dir" and not (a == "--projects-dir")]
 
     if cmd == "list_projects":
         projects_dir.mkdir(parents=True, exist_ok=True)
@@ -53,13 +50,13 @@ def dispatch(cmd: str, args: list[str]) -> dict[str, Any] | None:
     if cmd == "init_project":
         return _init_project(args, projects_dir)
     if cmd == "status":
-        return _status(_project_id(args, projects_dir), projects_dir)
+        return _status(_project_id(args, projects_dir))
     if cmd == "run_stage":
         return _run_stage(args, projects_dir, force)
     if cmd == "approve":
         return _approve(args, projects_dir)
     if cmd == "candidates":
-        return _candidates(_project_id(args, projects_dir), projects_dir)
+        return _candidates(_project_id(args, projects_dir))
     if cmd == "select_image":
         return _select_image(args, projects_dir)
     if cmd == "library_add":
@@ -88,9 +85,6 @@ def _project_id(args: list[str], projects_dir: Path) -> Path:
 
 
 def _init_project(args: list[str], projects_dir: Path) -> dict:
-    import typer
-    from video_factory.cli import init_project as cli_init
-
     project_id = args[0]
     topic, vertical, duration = "Untitled", "technology", 45
     i = 1
@@ -108,16 +102,12 @@ def _init_project(args: list[str], projects_dir: Path) -> dict:
             i += 2
         else:
             i += 1
-    try:
-        cli_init(project_id, topic=topic, vertical=vertical, duration=duration, projects=projects_dir)
-    except typer.Exit:
-        pass
+    init_project(project_id, topic=topic, vertical=vertical, duration=duration, projects_dir=projects_dir)
     return {"ok": True, "project_id": project_id}
 
 
-def _status(project_dir: Path, _projects_dir: Path) -> dict:
+def _status(project_dir: Path) -> dict:
     from video_factory.config import load_project_config
-    from video_factory.models.schemas import StageName
     from video_factory.stages.base import load_state
     from video_factory.stages.character import references_ready
     from video_factory.utils.approval import load_approval
@@ -126,7 +116,7 @@ def _status(project_dir: Path, _projects_dir: Path) -> dict:
     state = load_state(project_dir)
     refs_ok, missing = references_ready(project_dir)
     stages = []
-    for name in PIPELINE_ORDER:
+    for name in PIPELINE_ORDER_NAMES:
         rec = state.stages.get(name)
         st, detail = "pending", ""
         if rec and rec.completed_at and not rec.error:
@@ -149,7 +139,6 @@ def _status(project_dir: Path, _projects_dir: Path) -> dict:
 
 
 def _run_stage(args: list[str], projects_dir: Path, force: bool) -> dict:
-    from video_factory.models.schemas import StageName
     from video_factory.stages.base import load_state
 
     stage_name = args[0]
@@ -157,11 +146,9 @@ def _run_stage(args: list[str], projects_dir: Path, force: bool) -> dict:
     skip_research = "--skip-research" in args
     no_resume = "--no-resume" in args
 
-    from video_factory.cli import STAGE_RUNNERS
+    setup_logging(project_dir)
 
     if stage_name == "all":
-        from video_factory.cli import PIPELINE_ORDER
-
         ran = []
         for s in PIPELINE_ORDER:
             if s.value == "research" and skip_research:
@@ -179,7 +166,7 @@ def _run_stage(args: list[str], projects_dir: Path, force: bool) -> dict:
 
 
 def _approve(args: list[str], projects_dir: Path) -> dict:
-    from video_factory.models.schemas import ApprovalStatus, StageName
+    from video_factory.models.schemas import ApprovalStatus
     from video_factory.stages.base import json_artifact, load_state, save_state
     from video_factory.utils.approval import set_approval
     from video_factory.utils.files import read_json
@@ -197,7 +184,7 @@ def _approve(args: list[str], projects_dir: Path) -> dict:
     return {"ok": True}
 
 
-def _candidates(project_dir: Path, _pd: Path) -> dict:
+def _candidates(project_dir: Path) -> dict:
     from video_factory.stages.base import json_artifact
     from video_factory.utils.files import read_json
 
@@ -210,7 +197,9 @@ def _candidates(project_dir: Path, _pd: Path) -> dict:
 def _select_image(args: list[str], projects_dir: Path) -> dict:
     from video_factory.stages.images import select_image_variant
 
-    clean = [a for i, a in enumerate(args) if not (i > 0 and args[i - 1] == "--projects-dir") and a != "--projects-dir"]
+    clean = [
+        a for i, a in enumerate(args) if not (i > 0 and args[i - 1] == "--projects-dir") and a != "--projects-dir"
+    ]
     project_dir = projects_dir / clean[0]
     asset = select_image_variant(project_dir, clean[1], clean[2])
     return {"ok": True, "path": asset.path}

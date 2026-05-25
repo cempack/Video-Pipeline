@@ -70,10 +70,7 @@ func (r *Runner) Run(args ...string) (stdout, stderr string, err error) {
 	cmdArgs := append([]string{"-m", "video_factory.engine"}, args...)
 	cmd := exec.Command(r.PythonBin, cmdArgs...)
 	cmd.Dir = r.Root
-	cmd.Env = append(os.Environ(),
-		"PYTHONPATH="+filepath.Join(r.Root, "src"),
-		"VF_HEADLESS=1",
-	)
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join(r.Root, "src"))
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf

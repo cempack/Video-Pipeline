@@ -5,9 +5,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from rich.console import Console
-from rich.logging import RichHandler
-
 
 def setup_logging(project_dir: Path | None = None, level: int = logging.INFO) -> logging.Logger:
     logger = logging.getLogger("video_factory")
@@ -15,9 +12,10 @@ def setup_logging(project_dir: Path | None = None, level: int = logging.INFO) ->
     if logger.handlers:
         return logger
 
-    console_handler = RichHandler(console=Console(stderr=True), show_path=False)
-    console_handler.setLevel(level)
-    logger.addHandler(console_handler)
+    handler = logging.StreamHandler()
+    handler.setLevel(level)
+    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    logger.addHandler(handler)
 
     if project_dir:
         log_dir = project_dir / "logs"
