@@ -3,8 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/cempack/video-pipeline/video_factory/internal/python"
-	"github.com/cempack/video-pipeline/video_factory/internal/web"
 	"github.com/spf13/cobra"
 )
 
@@ -81,36 +79,14 @@ func runStage(stage, projectID string) error {
 }
 
 func newServeCmd() *cobra.Command {
-	var port int
-	var noOpen bool
 	cmd := &cobra.Command{
 		Use:     "serve",
 		Aliases: []string{"web", "ui"},
-		Short:   "Start web interface",
+		Short:   "Start web interface (same as running with no command)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := loadStore()
-			if err != nil {
-				return err
-			}
-			if projectsDirFlag != "" {
-				store.ProjectsDir = projectsDirFlag
-			}
-			r, err := python.NewRunner(store)
-			if err != nil {
-				return err
-			}
-			addr := fmt.Sprintf("127.0.0.1:%d", port)
-			fmt.Println()
-			fmt.Println("  Video Factory")
-			fmt.Println("  ─────────────────────────────")
-			fmt.Printf("  Web UI   http://%s\n", addr)
-			fmt.Println("  Press Ctrl+C to stop")
-			fmt.Println()
-			return web.Serve(addr, r, store)
+			return RunApp(appPort, appNoOpen)
 		},
 	}
-	cmd.Flags().IntVarP(&port, "port", "p", 3847, "HTTP port")
-	cmd.Flags().BoolVar(&noOpen, "no-open", false, "Do not print browser hint")
 	return cmd
 }
 

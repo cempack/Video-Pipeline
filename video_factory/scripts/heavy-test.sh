@@ -170,7 +170,7 @@ SESSION="vf-heavy-web"
 tmux -f /exec-daemon/tmux.portal.conf has-session -t "=$SESSION" 2>/dev/null && tmux -f /exec-daemon/tmux.portal.conf kill-session -t "$SESSION" || true
 tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "$SESSION" -c "$ROOT" -- "${SHELL:-bash}" -l
 tmux -f /exec-daemon/tmux.portal.conf send-keys -t "$SESSION:0.0" \
-  "VIDEO_FACTORY_FORCE_MANAGED=1 XDG_DATA_HOME='$XDG_DATA_HOME' XDG_CONFIG_HOME='$XDG_CONFIG_HOME' $BIN --projects '$DATA_DIR/projects' serve --port $PORT" C-m
+  "VIDEO_FACTORY_FORCE_MANAGED=1 XDG_DATA_HOME='$XDG_DATA_HOME' XDG_CONFIG_HOME='$XDG_CONFIG_HOME' $BIN --projects '$DATA_DIR/projects' --port $PORT --no-open" C-m
 sleep 2
 H="$(curl -sf "http://127.0.0.1:$PORT/api/health")" && assert_contains "$H" '"ok":true'
 C="$(curl -sf "http://127.0.0.1:$PORT/api/config")" && assert_contains "$C" "image_backend"

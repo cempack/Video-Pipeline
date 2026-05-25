@@ -1,70 +1,42 @@
 # Video Factory
 
-**One binary** (`video-factory`) with CLI + web UI. The Python pipeline is embedded and installed automatically on first run.
-
-## Install (end users)
-
-Download or build `video-factory` for your OS, then:
+## Use it (normal)
 
 ```bash
-./video-factory setup      # once: installs Python deps into ~/.video-factory (or %LOCALAPPDATA%)
-./video-factory config wizard
-./video-factory doctor
-./video-factory serve
+make build
+./dist/video-factory
 ```
 
-No manual `pip install`. FFmpeg must be on PATH (see `doctor` for install hints).
+Your browser opens to **http://127.0.0.1:3847** with a setup wizard:
 
-| Platform | Data directory | FFmpeg hint |
-|----------|----------------|-------------|
-| **macOS** | `~/Library/Application Support/video-factory` | `brew install ffmpeg` |
-| **Linux** | `~/.local/share/video-factory` | `apt install ffmpeg` |
-| **Windows** | `%LOCALAPPDATA%\video-factory` | `winget install Gyan.FFmpeg` |
+1. Welcome (dependencies install on first run)
+2. Paste your **Gemini API key** ([get one](https://aistudio.google.com/apikey))
+3. Create your first project
 
-### If Python is missing
+Then use the **Projects** screen: **Run all** runs the pipeline. Add Whisk reference images under `projects/<id>/inputs/` when you want stronger visual consistency.
 
-`setup` downloads a standalone Python 3.12 (~50MB) for your OS/arch (linux/mac/windows amd64/arm64).
+Press **Ctrl+C** in the terminal to stop the app.
 
-### Build from source
+### Options
 
 ```bash
-make build    # runs prepare-embed + go build → dist/video-factory
-make release  # linux + mac + windows binaries in dist/
+./dist/video-factory --no-open    # don't launch browser automatically
+./dist/video-factory --port 8080  # different port
 ```
 
-Developers in the repo can skip the managed bundle: the tool detects `pyproject.toml` + `src/video_factory` and uses the repo directly (still creates a managed venv for deps).
+### FFmpeg
 
-Force managed mode (test export behaviour):
+Only needed for the final **render** step. The wizard warns you if it’s missing:
 
-```bash
-VIDEO_FACTORY_FORCE_MANAGED=1 ./dist/video-factory setup
-```
+- **macOS:** `brew install ffmpeg`
+- **Linux:** `sudo apt install ffmpeg`
+- **Windows:** `winget install Gyan.FFmpeg`
 
-## CLI
-
-```bash
-video-factory init <id> -t "Topic"
-video-factory status <id>
-video-factory run <stage> <id>
-video-factory run all <id> --resume
-video-factory pick <id> s01 -v v02
-video-factory config wizard
-video-factory serve
-```
-
-## Web UI
+## Developers
 
 ```bash
-video-factory serve --port 3847
-```
-
-## Whisk visuals
-
-Add `inputs/style_reference.png` and `inputs/character_reference.png` to each project (from Google Whisk).
-
-## Tests (developers)
-
-```bash
-pip install -e ".[dev]"
+make build
+make test
+make heavy-test
 PYTHONPATH=src python3 -m pytest -q
 ```

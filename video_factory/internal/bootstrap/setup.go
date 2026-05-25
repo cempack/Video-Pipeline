@@ -279,6 +279,11 @@ func CheckFFmpeg() error {
 	return fmt.Errorf("ffmpeg not found — %s", ffmpegInstallHint())
 }
 
+// FFmpegInstallHint returns a one-line install command for the current OS.
+func FFmpegInstallHint() string {
+	return ffmpegInstallHint()
+}
+
 func ffmpegInstallHint() string {
 	switch runtime.GOOS {
 	case "windows":

@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
 
 	appcfg "github.com/cempack/video-pipeline/video_factory/internal/config"
+	"github.com/cempack/video-pipeline/video_factory/internal/bootstrap"
 	"github.com/cempack/video-pipeline/video_factory/internal/python"
 )
 
@@ -22,15 +24,25 @@ type Server struct {
 }
 
 func Serve(addr string, runner *python.Runner, store appcfg.Store) error {
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return ServeOn(ln, runner, store)
+}
+
+// ServeOn serves the web UI on an existing listener.
+func ServeOn(ln net.Listener, runner *python.Runner, store appcfg.Store) error {
 	s := &Server{runner: runner, store: store}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/api/health", s.handleHealth)
+	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/projects", s.handleProjects)
 	mux.HandleFunc("/api/project/", s.handleProject)
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
-	return http.ListenAndServe(addr, mux)
+	return http.Serve(ln, mux)
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +61,29 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"ok": true})
+}
+
+func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+	st, _ := appcfg.Load()
+	ffmpegOK := bootstrap.CheckFFmpeg() == nil
+	needsOnboarding := st.GeminiAPIKey == ""
+	resp := map[string]any{
+		"ok":                true,
+		"gemini_set":        st.GeminiAPIKey != "",
+		"elevenlabs_set":    st.ElevenLabsAPIKey != "",
+		"ffmpeg_ok":         ffmpegOK,
+		"needs_onboarding":  needsOnboarding,
+		"projects_dir":      s.runner.ProjectsDir,
+		"engine_root":       s.runner.Root,
+	}
+	if !ffmpegOK {
+		resp["ffmpeg_hint"] = bootstrap.FFmpegInstallHint()
+	}
+	jsonOK(w, resp)
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {

@@ -210,9 +210,71 @@
       color: var(--text-muted);
       margin-top: 12px;
     }
+    .wizard-backdrop {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.75);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .wizard-backdrop.hidden { display: none; }
+    .wizard {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      padding: 32px 36px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    }
+    .wizard h2 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      text-transform: none;
+      margin-bottom: 8px;
+    }
+    .wizard p.lead { color: var(--text-muted); margin-bottom: 24px; font-size: 14px; }
+    .wizard-steps { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+    .wizard-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+    .wizard a { color: var(--accent); text-decoration: underline; }
+    .ffmpeg-warn {
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      color: var(--warn);
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
+  <div id="wizard" class="wizard-backdrop hidden">
+    <div class="wizard" role="dialog" aria-labelledby="wiz-title">
+      <div class="wizard-steps" id="wiz-step-label">Step 1 of 3</div>
+      <h2 id="wiz-title">Welcome to Video Factory</h2>
+      <p class="lead" id="wiz-desc">Paste your API keys below. Everything stays on your computer.</p>
+      <div id="wiz-panel-keys">
+        <label>Gemini API key <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get one free</a></label>
+        <input type="password" id="wiz-gemini" placeholder="Required for scripts and scenes" autocomplete="off" />
+        <label>ElevenLabs API key <span style="color:var(--text-muted)">(optional — voiceover)</span></label>
+        <input type="password" id="wiz-eleven" placeholder="Skip if testing images only" autocomplete="off" />
+        <div id="wiz-ffmpeg" class="ffmpeg-warn hidden"></div>
+      </div>
+      <div id="wiz-panel-project" class="hidden">
+        <label>First video — topic</label>
+        <input id="wiz-topic" placeholder="What is this short video about?" />
+        <label>Project name</label>
+        <input id="wiz-id" placeholder="my-first-video" />
+      </div>
+      <div class="wizard-actions">
+        <button type="button" class="btn" id="wiz-next">Continue</button>
+        <button type="button" class="btn btn-ghost hidden" id="wiz-back">Back</button>
+        <button type="button" class="btn btn-ghost" id="wiz-skip">Skip for now</button>
+      </div>
+    </div>
+  </div>
   <div class="grain"></div>
   <div class="layout">
     <aside>
@@ -464,7 +526,124 @@
 
     document.getElementById('btn-refresh').onclick = () => { loadProjects(); if (selectedId) loadDetail(); };
 
+    let wizardStep = 0;
+    let appStatus = {};
+
+    async function loadStatus() {
+      appStatus = await api('/api/status');
+      const ff = document.getElementById('wiz-ffmpeg');
+      if (!appStatus.ffmpeg_ok && appStatus.ffmpeg_hint) {
+        ff.classList.remove('hidden');
+        ff.textContent = 'FFmpeg not found (needed for final render). Install: ' + appStatus.ffmpeg_hint;
+      } else ff.classList.add('hidden');
+      return appStatus;
+    }
+
+    function showWizard(show) {
+      document.getElementById('wizard').classList.toggle('hidden', !show);
+    }
+
+    function renderWizardStep() {
+      const keys = document.getElementById('wiz-panel-keys');
+      const proj = document.getElementById('wiz-panel-project');
+      const back = document.getElementById('wiz-back');
+      const next = document.getElementById('wiz-next');
+      const label = document.getElementById('wiz-step-label');
+      const title = document.getElementById('wiz-title');
+      const desc = document.getElementById('wiz-desc');
+      if (wizardStep === 0) {
+        label.textContent = 'Step 1 of 3';
+        title.textContent = 'Welcome to Video Factory';
+        desc.textContent = 'Dependencies are installed. Add your Gemini key to generate scripts.';
+        keys.classList.remove('hidden');
+        proj.classList.add('hidden');
+        back.classList.add('hidden');
+        next.textContent = 'Continue';
+      } else if (wizardStep === 1) {
+        label.textContent = 'Step 2 of 3';
+        title.textContent = 'API keys';
+        desc.textContent = 'Keys are saved locally on your machine.';
+        keys.classList.remove('hidden');
+        proj.classList.add('hidden');
+        back.classList.remove('hidden');
+        next.textContent = 'Save & continue';
+      } else {
+        label.textContent = 'Step 3 of 3';
+        title.textContent = 'Create your first project';
+        desc.textContent = 'You can add Whisk style images later in the project folder.';
+        keys.classList.add('hidden');
+        proj.classList.remove('hidden');
+        back.classList.remove('hidden');
+        next.textContent = 'Create project';
+        if (!document.getElementById('wiz-id').value)
+          document.getElementById('wiz-id').value = 'my-first-video';
+      }
+    }
+
+    document.getElementById('wiz-skip').onclick = () => {
+      localStorage.setItem('vf_wizard_done', '1');
+      showWizard(false);
+      showView('projects');
+    };
+
+    document.getElementById('wiz-back').onclick = () => {
+      if (wizardStep > 0) { wizardStep--; renderWizardStep(); }
+    };
+
+    document.getElementById('wiz-next').onclick = async () => {
+      try {
+        if (wizardStep === 0) {
+          wizardStep = 1;
+          renderWizardStep();
+          return;
+        }
+        if (wizardStep === 1) {
+          const key = document.getElementById('wiz-gemini').value.trim();
+          if (!key) { toast('Gemini API key is required', true); return; }
+          await api('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gemini_api_key: key,
+              elevenlabs_api_key: document.getElementById('wiz-eleven').value,
+            }),
+          });
+          document.getElementById('cfg-gemini').value = key;
+          wizardStep = 2;
+          renderWizardStep();
+          loadConfig();
+          return;
+        }
+        const id = document.getElementById('wiz-id').value.trim();
+        const topic = document.getElementById('wiz-topic').value.trim();
+        if (!id || !topic) { toast('Project name and topic required', true); return; }
+        await api('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, topic, vertical: 'technology', duration: 45 }),
+        });
+        selectedId = id;
+        localStorage.setItem('vf_wizard_done', '1');
+        showWizard(false);
+        toast('You\'re ready — click Run all on your project');
+        loadConfig();
+        loadProjects();
+        loadDetail();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    async function maybeShowWizard() {
+      await loadStatus();
+      const done = localStorage.getItem('vf_wizard_done') === '1';
+      if (!done || appStatus.needs_onboarding) {
+        wizardStep = appStatus.gemini_set ? 2 : 0;
+        renderWizardStep();
+        showWizard(true);
+      }
+    }
+
     loadConfig();
+    loadStatus().then(() => maybeShowWizard()).catch(() => showWizard(true));
     loadProjects().catch(e => toast(e.message, true));
   </script>
 </body>

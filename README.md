@@ -1,12 +1,12 @@
 # Video-Pipeline
 
-Short-form video pipeline with a **Go CLI + web UI** (~6MB binary) and Python rendering engine.
+**Run one file → browser opens → follow the setup wizard.**
 
 ```bash
 cd video_factory && make build
-./dist/video-factory setup          # auto-installs Python engine (first run)
-./dist/video-factory config wizard
-./dist/video-factory serve
+./dist/video-factory
 ```
 
-Full docs: **[video_factory/README.md](video_factory/README.md)**
+That’s it. First launch installs Python dependencies automatically. The web app walks you through API keys and creating your first project.
+
+Advanced CLI commands still exist (`init`, `run`, `doctor`) — see [video_factory/README.md](video_factory/README.md).

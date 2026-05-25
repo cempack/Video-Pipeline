@@ -1,4 +1,4 @@
-.PHONY: build prepare-embed test setup doctor
+.PHONY: build prepare-embed test setup doctor heavy-test
 
 BINARY := dist/video-factory
 

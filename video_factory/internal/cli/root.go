@@ -14,14 +14,21 @@ var (
 	projectsDirFlag string
 	forceFlag       bool
 	resumeFlag      bool = true
+	appPort         int  = 3847
+	appNoOpen       bool
 )
 
 func Execute() error {
 	root := &cobra.Command{
 		Use:   "video-factory",
-		Short: "Short-video pipeline — CLI & web UI",
-		Long:  "Create vertical videos with script, Whisk-style visuals, voiceover, and FFmpeg render.",
+		Short: "Short-video pipeline — double-click or run to open the web app",
+		Long:  "Run with no arguments to open the browser and configure everything in the UI.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return RunApp(appPort, appNoOpen)
+		},
 	}
+	root.Flags().IntVarP(&appPort, "port", "p", 3847, "Web UI port")
+	root.Flags().BoolVar(&appNoOpen, "no-open", false, "Do not open a browser automatically")
 	root.PersistentFlags().StringVar(&projectsDirFlag, "projects", "", "Projects directory (default: ./projects or config)")
 
 	root.AddCommand(newInitCmd())
