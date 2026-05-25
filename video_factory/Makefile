@@ -13,6 +13,9 @@ build: prepare-embed
 test:
 	PYTHONPATH=src python3 -m pytest -q
 
+heavy-test: build
+	bash scripts/heavy-test.sh
+
 setup: build
 	./$(BINARY) setup
 

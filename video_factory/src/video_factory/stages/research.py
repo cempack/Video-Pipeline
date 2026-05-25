@@ -10,12 +10,17 @@ from video_factory.utils.files import atomic_write_json, inputs_path
 from video_factory.utils.hash import content_hash
 
 
-def run_research(project_dir: Path) -> ResearchPack:
+def run_research(project_dir: Path, *, force: bool = False) -> ResearchPack:
+    state = load_state(project_dir)
+    out = json_artifact(project_dir, "research_pack.json")
+    if not force and state.is_complete(StageName.RESEARCH) and out.exists():
+        from video_factory.utils.files import read_json
+
+        return ResearchPack.model_validate(read_json(out))
+
     config = get_config(project_dir)
     pack = _build_research_pack(project_dir, config)
-    out = json_artifact(project_dir, "research_pack.json")
     atomic_write_json(out, pack.model_dump(mode="json"))
-    state = load_state(project_dir)
     state.mark_complete(StageName.RESEARCH, content_hash(pack.model_dump()))
     save_state(project_dir, state)
     return pack
