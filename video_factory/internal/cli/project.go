@@ -146,6 +146,7 @@ func newDoctorCmd() *cobra.Command {
 				fmt.Println("  ✓ Gemini API key configured")
 			} else {
 				fmt.Println("  ✗ Gemini API key missing — run: video-factory config wizard")
+			fmt.Println("  (Run video-factory setup if this is a fresh install)")
 			}
 			if store.ElevenLabsAPIKey != "" {
 				fmt.Println("  ✓ ElevenLabs API key configured")

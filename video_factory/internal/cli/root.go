@@ -34,6 +34,7 @@ func Execute() error {
 	root.AddCommand(newCandidatesCmd())
 	root.AddCommand(newLibraryCmd())
 	root.AddCommand(newDoctorCmd())
+	root.AddCommand(newSetupCmd())
 
 	return root.Execute()
 }
