@@ -23,10 +23,14 @@ from video_factory.utils.files import atomic_write_json
 
 @pytest.fixture
 def mini_project(tmp_path: Path) -> Path:
+    from PIL import Image
+
     project_dir = tmp_path / "test-proj"
     ensure_project_layout(project_dir)
     cfg = default_project_config("test-proj", "Test topic")
     save_project_config(project_dir, cfg)
+    Image.new("RGB", (200, 300), (255, 240, 220)).save(project_dir / "inputs" / "style_reference.png")
+    Image.new("RGBA", (200, 300), (255, 200, 150, 255)).save(project_dir / "inputs" / "character_reference.png")
 
     script = ScriptPackage(
         title="Test",

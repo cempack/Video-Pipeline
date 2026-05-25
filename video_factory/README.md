@@ -93,6 +93,26 @@ pytest -q
 - **Fail loudly**: Stages validate prerequisites via `require_stage`.
 - **No publishing**: Outputs are local MP4 files only.
 
+## Whisk-style visual coherence
+
+The pipeline mimics [Google Whisk](https://labs.google/fx/tools/whisk): **style board + character subject + scene prompt**.
+
+1. Export from Whisk (or paint in MS Paint) into:
+   - `inputs/style_reference.png` — full style board (palette, line weight, texture)
+   - `inputs/character_reference.png` — canonical character (face + outfit)
+2. Set in `config.yaml`:
+   ```yaml
+   image_backend: whisk_local   # offline: palette lock + face composite
+   # image_backend: whisk_gemini  # API: Gemini image + same postprocess
+   enforce_face_lock: true
+   style_reference: inputs/style_reference.png
+   character_reference: inputs/character_reference.png
+   ```
+3. `whisk_local` applies palette harmonization, style texture blend, and **automated face lock** (same character anchor every scene — Bog’s Premiere fix, built-in).
+4. `whisk_gemini` sends both reference images to Gemini with strict “do not change the face” prompts, then runs the same post-pass.
+
+Replace template PNGs from `init-project` with your real Whisk exports for production quality.
+
 ## Faceless-channel production techniques
 
 Inspired by real AI YouTube workflows (e.g. static-illustration channels using ElevenLabs + batch image gen):

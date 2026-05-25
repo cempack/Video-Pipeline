@@ -7,6 +7,8 @@ from pathlib import Path
 from video_factory.adapters.ffmpeg import FFmpegAdapter
 from video_factory.models.schemas import ProjectConfig, QAReport, QACheck, RenderTimeline, StageName
 from video_factory.stages.base import get_config, get_settings, json_artifact, load_state, outputs_path, require_stage, save_state
+from video_factory.stages.character import references_ready
+from video_factory.ui.console import get_console
 from video_factory.utils.files import atomic_write_json, read_json, require_file
 from video_factory.utils.hash import content_hash
 
@@ -82,6 +84,23 @@ def run_qa(project_dir: Path, *, force: bool = False) -> QAReport:
     else:
         checks.append(QACheck(name="subtitle_parse", passed=False, message="missing SRT"))
 
+    for scene in timeline.scenes:
+        if scene.duration_sec < 1.0:
+            warnings.append(f"Scene {scene.scene_id} under 1s — may feel rushed")
+        if scene.duration_sec > config.scene_beat_sec * 2:
+            warnings.append(f"Scene {scene.scene_id} longer than 2× beat ({config.scene_beat_sec}s)")
+
+    refs_ok, missing = references_ready(project_dir)
+    checks.append(
+        QACheck(
+            name="whisk_references",
+            passed=refs_ok or not config.enforce_face_lock,
+            message="ok" if refs_ok else f"missing: {missing}",
+        )
+    )
+    if config.enforce_face_lock and not (project_dir / "work/json/character_sheet.png").is_file():
+        warnings.append("Character sheet missing — face lock may be inconsistent")
+
     script_meta_path = json_artifact(project_dir, "script_meta.json")
     if script_meta_path.exists():
         meta = read_json(script_meta_path)
@@ -95,12 +114,6 @@ def run_qa(project_dir: Path, *, force: bool = False) -> QAReport:
         )
         if not title_ok:
             warnings.append("Title may truncate on YouTube mobile homepage")
-
-    for scene in timeline.scenes:
-        if scene.duration_sec < 1.0:
-            warnings.append(f"Scene {scene.scene_id} under 1s — may feel rushed")
-        if scene.duration_sec > config.scene_beat_sec * 2:
-            warnings.append(f"Scene {scene.scene_id} longer than 2× beat ({config.scene_beat_sec}s)")
 
     passed = all(c.passed for c in checks)
     report = QAReport(
@@ -116,4 +129,5 @@ def run_qa(project_dir: Path, *, force: bool = False) -> QAReport:
     else:
         state.mark_failed(StageName.QA, "QA checks failed")
     save_state(project_dir, state)
+    get_console().qa_summary(passed, checks, warnings)
     return report

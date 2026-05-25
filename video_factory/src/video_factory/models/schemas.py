@@ -42,6 +42,10 @@ class ProjectConfig(BaseModel):
     style_reference: str = ""
     character_reference: str = ""
     max_title_chars: int = 60
+    image_backend: Literal["whisk_local", "whisk_gemini", "placeholder"] = "whisk_local"
+    enforce_face_lock: bool = True
+    palette_lock_strength: float = Field(default=0.55, ge=0.0, le=1.0)
+    gemini_image_model: str = ""
 
 
 class ResearchSource(BaseModel):
@@ -233,6 +237,7 @@ class QAReport(BaseModel):
 
 class StageName(str, Enum):
     RESEARCH = "research"
+    CHARACTER = "character"
     SCRIPT = "script"
     SCENES = "scenes"
     PROMPTS = "prompts"

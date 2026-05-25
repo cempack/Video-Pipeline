@@ -13,3 +13,7 @@ auto_select_first_variant: true
 remove_silence: true
 use_asset_library: true
 max_title_chars: 60
+image_backend: whisk_local
+style_reference: inputs/style_reference.png
+character_reference: inputs/character_reference.png
+enforce_face_lock: true

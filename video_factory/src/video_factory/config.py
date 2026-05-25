@@ -25,8 +25,9 @@ class AppSettings(BaseSettings):
     elevenlabs_api_key: str = ""
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
-    image_backend: Literal["placeholder", "local_sd"] = "placeholder"
+    image_backend: Literal["whisk_local", "whisk_gemini", "placeholder", "local_sd"] = "whisk_local"
     gemini_model: str = "gemini-2.0-flash"
+    gemini_image_model: str = "gemini-2.0-flash-exp-image-generation"
     elevenlabs_model_id: str = "eleven_multilingual_v2"
     elevenlabs_voice_id: str = ""
 
@@ -87,4 +88,8 @@ def default_project_config(
         image_variants_per_scene=4,
         remove_silence=True,
         use_asset_library=True,
+        style_reference="inputs/style_reference.png",
+        character_reference="inputs/character_reference.png",
+        image_backend="whisk_local",
+        enforce_face_lock=True,
     )

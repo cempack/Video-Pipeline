@@ -70,6 +70,7 @@ def run_script(project_dir: Path, *, force: bool = False) -> ScriptPackage:
             project_dir,
             StageApproval(stage=StageName.SCRIPT.value, status=ApprovalStatus.PENDING),
         )
+        save_state(project_dir, state)
     else:
         state.mark_complete(StageName.SCRIPT, content_hash(pkg.model_dump()))
         save_state(project_dir, state)
